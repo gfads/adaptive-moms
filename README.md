@@ -9,7 +9,7 @@ and network control flow. These controllers are used to fine-tune the behaviour 
 - [Team](#team)
 
 ## Implementation
-- [Publisher]()
+- [Publisher](https://raw.githubusercontent.com/gfads/adaptive-moms/main/rabbitmq/publisher/main.go)
 - Subscriber
 - Controllers
 
