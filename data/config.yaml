@@ -1,11 +1,12 @@
 Alfa                  : 1.0
 Beta                  : 0.5
-ControllerType        : "FuzzyController"
+ControllerType        : "HPA"
 Deadzone              : 100.0
 DeffuzificationMethod : "Centroid"
 DeltaTime             : 5
 Direction             : 1.0
 DockerDir             : "C:\\Users\\user\\go\\adaptive-moms\\data"
+ExecutionType         : "ExperimentClosedLoop"
 HysteresisBand        : 100.0
 Kp                    : 13.0
 Ki                    : 0.0
@@ -13,8 +14,9 @@ Kd                    : 0.0
 Max                   : 100.0
 Mean                  : 10.0
 MembershipFunction    : "Gaussian"
+MessageSize           : 256
 Min                   : 1.0
-MonitorTime           : 10
+MonitorTime           : 2
 NumberOfClients       : 100
 NumberOfRequests      : 1000000
 OutputFile            : "basicpid.csv"
@@ -22,5 +24,6 @@ PC                    : 1.0
 QueueName             : "rpc_queue"
 RabbitMQHost          : "localhost"
 RabbitMQPort          : 5672
-SetPoint              : 500.0
+SampleSizePerLevel    : 3
+SetPoints             : [500]
 StdDev                : 2.0

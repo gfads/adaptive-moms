@@ -10,7 +10,6 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -26,7 +25,7 @@ type Parameters struct {
 	Controller     controllers.Controller
 	PC             float64
 	MonitorTime    time.Duration
-	SetPoint       float64
+	SetPoints      []int
 }
 
 type Subscriber struct {
@@ -41,14 +40,6 @@ func main() {
 	// load configuration parameters
 	p := parameters.LoadParameters()
 
-	// define and open csv file to record experiment results
-	dataFileName := p.OutputFile
-	df, err := os.Create(p.DockerDir + "\\" + dataFileName)
-	if err != nil {
-		shared.ErrorHandler(shared.GetFunction(), err.Error())
-	}
-	defer df.Close()
-
 	// Create & initialise the controller
 	controller := controllers.NewController(p.ControllerType)
 	controller.Initialise(p)
@@ -57,8 +48,23 @@ func main() {
 	subscriber := NewSubscriber()
 	subscriber.Initialise(p, controller)
 
-	// Run closed loop, i.e., run with a controller
-	subscriber.RunClosedLoop(df)
+	subscriber.Run(p)
+}
+
+func (s *Subscriber) Run(p parameters.AllParameters) {
+
+	switch p.ExecutionType {
+	case shared.OpenLoop:
+		s.RunOpenLoop(p)
+	case shared.MonitoredOpenLoop:
+		s.RunMonitoredOpenLoop(p)
+	case shared.ClosedLoop:
+		s.RunClosedLoop(p)
+	case shared.ExperimentClosedLoop:
+		s.RunExperimentClosedLoop(p)
+	default:
+		shared.ErrorHandler(shared.GetFunction(), "Unknown ´Execution Type'")
+	}
 }
 
 func (s *Subscriber) Initialise(p parameters.AllParameters, c controllers.Controller) {
@@ -67,36 +73,10 @@ func (s *Subscriber) Initialise(p parameters.AllParameters, c controllers.Contro
 	s.Params.QueueName = p.QueueName
 	s.Params.PC = p.PC
 	s.Params.MonitorTime = time.Duration(p.MonitorTime)
-	s.Params.SetPoint = p.SetPoint
+	s.Params.SetPoints = p.SetPoints
 	s.Params.Controller = c
 
 	s.configureRabbitMQ(s.Params.RabbitMQHost, s.Params.RabbitMQPort, s.Params.QueueName, s.Params.PC)
-}
-
-func (s Subscriber) RunOpenLoop(wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	// Close channels and connections (when finish)
-	defer func(Conn *amqp.Connection) {
-		err := Conn.Close()
-		if err != nil {
-			shared.ErrorHandler(shared.GetFunction(), err.Error())
-		}
-	}(s.Params.Conn)
-	defer func(Ch *amqp.Channel) {
-		err := Ch.Close()
-		if err != nil {
-			shared.ErrorHandler(shared.GetFunction(), err.Error())
-		}
-	}(s.Params.Ch)
-
-	for d := range s.Params.Msgs {
-		err := d.Ack(false) // send ack to broker
-		if err != nil {
-			shared.ErrorHandler(shared.GetFunction(), err.Error())
-		}
-		fmt.Println(d.Body)
-	}
 }
 
 func (s *Subscriber) Warmup() {
@@ -133,20 +113,50 @@ func (s *Subscriber) Warmup() {
 	fmt.Println("End of Warming up...")
 }
 
-func (s *Subscriber) RunMonitoredOpenLoop(wg *sync.WaitGroup) {
+func (s Subscriber) RunOpenLoop(p parameters.AllParameters) {
 
-	defer wg.Done()
-	n := 0 // number of receive messages
+	// Close channels and connections (when finish)
+	defer func(Conn *amqp.Connection) {
+		err := Conn.Close()
+		if err != nil {
+			shared.ErrorHandler(shared.GetFunction(), err.Error())
+		}
+	}(s.Params.Conn)
+	defer func(Ch *amqp.Channel) {
+		err := Ch.Close()
+		if err != nil {
+			shared.ErrorHandler(shared.GetFunction(), err.Error())
+		}
+	}(s.Params.Ch)
 
-	// receive messages
-	tt := time.Tick(s.Params.MonitorTime * time.Second)
+	fmt.Printf("Subscriber running [%v] ...\n", p.ExecutionType)
 	for d := range s.Params.Msgs {
 		err := d.Ack(false) // send ack to broker
 		if err != nil {
 			shared.ErrorHandler(shared.GetFunction(), err.Error())
 		}
+		fmt.Println(d.Body)
+	}
+}
+
+func (s *Subscriber) RunMonitoredOpenLoop(p parameters.AllParameters) {
+	n := 0 // number of receive messages
+
+	// configure monitor timer
+	tt := time.Tick(s.Params.MonitorTime)
+
+	// receive messages
+	fmt.Printf("Subscriber running [%v] ...\n", p.ExecutionType)
+	err := error(nil)
+	for {
 		n++ // increment the number of received messages
 		select {
+		case d := <-s.Params.Msgs:
+			err = d.Ack(false) // send ack to broker
+			if err != nil {
+				shared.ErrorHandler(shared.GetFunction(), err.Error())
+			}
+			n++ // increment the number of received messages
 		case <-tt:
 			// inspect queue
 			s.Params.Queue, err = s.Params.Ch.QueueInspect(s.Params.QueueName)
@@ -156,15 +166,14 @@ func (s *Subscriber) RunMonitoredOpenLoop(wg *sync.WaitGroup) {
 			}
 
 			// calculate rate
-			rate := float64(n) / float64(s.Params.MonitorTime)
-			fmt.Printf("%d;%.2f;%v;%d\n", s.Params.PC, rate, s.Params.MonitorTime, n)
+			rate := float64(n) / float64(s.Params.MonitorTime.Seconds())
+			fmt.Printf("%.0f;%.2f;%v\n", s.Params.PC, rate, s.Params.SetPoints[0])
 			n = 0
-		default:
 		}
 	}
 }
 
-func (s *Subscriber) RunClosedLoop(df *os.File) {
+func (s *Subscriber) RunClosedLoop(p parameters.AllParameters) {
 
 	// initialise the counter of received messages
 	n := 0
@@ -172,14 +181,17 @@ func (s *Subscriber) RunClosedLoop(df *os.File) {
 	// configure timer
 	tt := time.Tick(s.Params.MonitorTime)
 
-	// receive messages
-	for d := range s.Params.Msgs {
-		err := d.Ack(false) // send ack to broker
-		if err != nil {
-			shared.ErrorHandler(shared.GetFunction(), err.Error())
-		}
-		n++ // increment the number of received messages
+	// receive message
+	fmt.Printf("Subscriber running [%v] ...\n", p.ExecutionType)
+	err := error(nil)
+	for {
 		select {
+		case d := <-s.Params.Msgs:
+			err = d.Ack(false) // send ack to broker
+			if err != nil {
+				shared.ErrorHandler(shared.GetFunction(), err.Error())
+			}
+			n++ // increment the number of received messages
 		case <-tt:
 			// inspect queue
 			s.Params.Queue, err = s.Params.Ch.QueueInspect(s.Params.QueueName)
@@ -191,11 +203,11 @@ func (s *Subscriber) RunClosedLoop(df *os.File) {
 			// calculate rate
 			rate := float64(n) / float64(s.Params.MonitorTime.Seconds())
 
-			// register experiment data
-			fmt.Fprintf(df, "%.0f;%.2f;%.2f\n", s.Params.PC, rate, s.Params.SetPoint)
+			// show current data (* not save information *)
+			fmt.Printf("%.0f;%.2f;%v\n", s.Params.PC, rate, s.Params.SetPoints[0])
 
 			// compute new pc
-			newPC := s.Params.Controller.Update(s.Params.SetPoint, rate, s.Params.PC)
+			newPC := s.Params.Controller.Update(float64(s.Params.SetPoints[0]), rate, s.Params.PC)
 			err := s.Params.Ch.Qos(
 				int(newPC), // prefetch count
 				0,          // prefetch size
@@ -211,6 +223,88 @@ func (s *Subscriber) RunClosedLoop(df *os.File) {
 			// reset no. of received messages
 			n = 0
 		default: // receive next message
+		}
+	}
+}
+
+func (s *Subscriber) RunExperimentClosedLoop(p parameters.AllParameters) {
+	err := error(nil)
+
+	// define and open csv file to record experiment results
+	dataFileName := p.OutputFile
+	df, err := os.Create(p.DockerDir + "\\" + dataFileName)
+	if err != nil {
+		shared.ErrorHandler(shared.GetFunction(), err.Error())
+	}
+	defer df.Close()
+
+	// initialise the counter of received messages
+	n := 0
+
+	// configure timer
+	tt := time.Tick(s.Params.MonitorTime)
+
+	// configure current setpoint
+	currentSetpoint := 0
+
+	// configure current sample
+	currentSample := 0
+
+	// receive messages
+	fmt.Printf("Subscriber running [%v] ...\n", p.ExecutionType)
+	for {
+		select {
+		case d := <-s.Params.Msgs:
+			err = d.Ack(false) // send ack to broker
+			if err != nil {
+				shared.ErrorHandler(shared.GetFunction(), err.Error())
+			}
+			n++ // increment the number of received messages
+		case <-tt:
+			// update current sample
+			currentSample++
+
+			// inspect queue
+			s.Params.Queue, err = s.Params.Ch.QueueInspect(s.Params.QueueName)
+			if err != nil {
+				shared.ErrorHandler(shared.GetFunction(), "Impossible to inspect the queue")
+				os.Exit(0)
+			}
+
+			// calculate rate
+			rate := float64(n) / float64(s.Params.MonitorTime.Seconds())
+
+			// register experiment data
+			fmt.Fprintf(df, "%.0f;%.2f;%v\n", s.Params.PC, rate, s.Params.SetPoints[currentSetpoint])
+
+			// show experiment data
+			fmt.Printf("%.0f;%.2f;%v\n", s.Params.PC, rate, s.Params.SetPoints[currentSetpoint])
+
+			// compute new pc
+			newPC := s.Params.Controller.Update(float64(s.Params.SetPoints[currentSetpoint]), rate, s.Params.PC)
+			err := s.Params.Ch.Qos(
+				int(newPC), // prefetch count
+				0,          // prefetch size
+				true,       // global - default is false
+			)
+			if err != nil {
+				shared.ErrorHandler(shared.GetFunction(), "Failed to set QoS")
+			}
+
+			// update pc
+			s.Params.PC = math.Round(newPC)
+
+			// reset no. of received messages
+			n = 0
+
+			// check current sample size & current set point
+			if currentSample >= p.SampleSizePerLevel {
+				currentSample = 0
+				currentSetpoint++
+				if currentSetpoint >= len(p.SetPoints) {
+					currentSetpoint = 0
+				}
+			}
 		}
 	}
 }

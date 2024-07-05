@@ -11,6 +11,10 @@ import (
 
 // Experiment configurations
 const WarmupMessages int = 100000
+const ExperimentClosedLoop string = "ExperimentClosedLoop"
+const OpenLoop string = "OpenLoop"
+const MonitoredOpenLoop = "MonitoredOpenLoop"
+const ClosedLoop string = "ClosedLoop"
 
 // Controllers
 const BasicPID string = "BasicPID"

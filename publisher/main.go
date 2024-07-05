@@ -21,7 +21,7 @@ type Parameters struct {
 	NumberOfRequests int
 	Mean             float64
 	StdDev           float64
-	MsgSize          int
+	MessageSize      int
 	Conn             *amqp.Connection
 	Ch               *amqp.Channel
 	Queue            amqp.Queue
@@ -75,8 +75,8 @@ func (p *Publisher) Run(wg *sync.WaitGroup) {
 	err := error(nil)
 
 	// create & fill the message
-	msg := make([]uint8, p.Params.MsgSize) // fixed 256 bytes
-	for i := 0; i < p.Params.MsgSize; i++ {
+	msg := make([]uint8, p.Params.MessageSize)
+	for i := 0; i < p.Params.MessageSize; i++ {
 		msg[i] = uint8(i % 255)
 	}
 
@@ -113,7 +113,7 @@ func (p *Publisher) Initialise(id string, params parameters.AllParameters) {
 	p.Params.NumberOfRequests = params.NumberOfRequests
 	p.Params.Mean = params.Mean
 	p.Params.StdDev = params.StdDev
-	p.Params.MsgSize = params.MsgSize
+	p.Params.MessageSize = params.MessageSize
 
 	p.configureRabbitMQ(p.Params.RabbitMQHost, p.Params.RabbitMQPort, p.Params.QueueName)
 }

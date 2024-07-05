@@ -11,24 +11,26 @@ type AllParameters struct {
 	Beta                  float64
 	Direction             float64
 	DeffuzificationMethod string
+	DeltaTime             time.Duration
+	ExecutionType         string
 	HysteresisBand        float64
 	Kp                    float64
 	Ki                    float64
 	Kd                    float64
 	Max                   float64
-	Min                   float64
+	Mean                  float64
 	MembershipFunction    string
-	PC                    float64
-	SetPoint              float64
-	DeltaTime             time.Duration
-	RabbitMQHost          string
-	RabbitMQPort          int
-	QueueName             string
+	MessageSize           int
+	Min                   float64
 	MonitorTime           time.Duration
 	NumberOfRequests      int
-	Mean                  float64
+	PC                    float64
+	QueueName             string
+	RabbitMQHost          string
+	RabbitMQPort          int
+	SampleSizePerLevel    int
+	SetPoints             []int
 	StdDev                float64
-	MsgSize               int
 	NumberOfClients       int
 	OutputFile            string
 	DockerDir             string
@@ -65,7 +67,7 @@ func LoadParameters() AllParameters {
 	r.Max = viper.GetFloat64("Max")
 	r.Min = viper.GetFloat64("Min")
 	r.PC = viper.GetFloat64("PC")
-	r.SetPoint = viper.GetFloat64("SetPoint")
+	r.SetPoints = viper.GetIntSlice("SetPoints")
 	r.DeltaTime = viper.GetDuration("DeltaTime") * time.Second
 	r.RabbitMQHost = viper.GetString("RabbitMQHost")
 	r.RabbitMQPort = viper.GetInt("RabbitMQPort")
@@ -74,6 +76,7 @@ func LoadParameters() AllParameters {
 	r.Mean = viper.GetFloat64("Mean")
 	r.StdDev = viper.GetFloat64("StdDev")
 	r.NumberOfClients = viper.GetInt("NumberOfClients")
+	r.MessageSize = viper.GetInt("MessageSize")
 	r.MonitorTime = viper.GetDuration("MonitorTime") * time.Second
 	r.OutputFile = viper.GetString("OutputFile")
 	r.DockerDir = viper.GetString("DockerDir")
@@ -83,6 +86,8 @@ func LoadParameters() AllParameters {
 	r.DeffuzificationMethod = viper.GetString("DeffuzificationMethod")
 	r.MembershipFunction = viper.GetString("MembershipFunction")
 	r.ControllerType = viper.GetString("ControllerType")
+	r.ExecutionType = viper.GetString("ExecutionType")
+	r.SampleSizePerLevel = viper.GetInt("SampleSizePerLevel")
 
 	return r
 }
