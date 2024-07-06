@@ -43,11 +43,6 @@ func main() { // Windows
 
 	publisher.Initialise(clientId, p)
 
-	// Run a single publisher
-	//wg := sync.WaitGroup{}
-	//wg.Add(1)
-	//publisher.Run(&wg)
-
 	// Run Experiments
 	RunExperiments(publisher, p)
 }
@@ -105,9 +100,9 @@ func (p *Publisher) Run(wg *sync.WaitGroup) {
 }
 
 func (p *Publisher) Initialise(id string, params parameters.AllParameters) {
-	p.Params.NumberOfClients = params.NumberOfClients
+	//p.Params.NumberOfClients = params.NumberOfClients
 	p.Params.Id = id
-	p.Params.RabbitMQHost = params.RabbitMQHost
+	p.Params.RabbitMQHost = params.RabbitMQHostPub
 	p.Params.RabbitMQPort = params.RabbitMQPort
 	p.Params.QueueName = params.QueueName
 	p.Params.NumberOfRequests = params.NumberOfRequests
@@ -115,14 +110,14 @@ func (p *Publisher) Initialise(id string, params parameters.AllParameters) {
 	p.Params.StdDev = params.StdDev
 	p.Params.MessageSize = params.MessageSize
 
-	p.configureRabbitMQ(p.Params.RabbitMQHost, p.Params.RabbitMQPort, p.Params.QueueName)
+	p.configureRabbitMQ(params)
 }
 
-func (p *Publisher) configureRabbitMQ(host string, port int, queueName string) {
+func (p *Publisher) configureRabbitMQ(params parameters.AllParameters) {
 
 	err := error(nil)
 
-	p.Params.Conn, err = amqp.Dial("amqp://guest:guest@" + host + ":" + strconv.Itoa(port) + "/")
+	p.Params.Conn, err = amqp.Dial("amqp://guest:guest@" + params.RabbitMQHostPub + ":" + strconv.Itoa(params.RabbitMQPort) + "/")
 	if err != nil {
 		shared.ErrorHandler(shared.GetFunction(), "Failed to connect to RabbitMQ broker")
 	}
@@ -134,12 +129,12 @@ func (p *Publisher) configureRabbitMQ(host string, port int, queueName string) {
 
 	// Queue - it creates a queue if it does not exist
 	p.Params.Queue, err = p.Params.Ch.QueueDeclare(
-		queueName, // name
-		false,     // durable default is false
-		false,     // delete when unused
-		false,     // exclusive default is true
-		false,     // noWait
-		nil,       // arguments
+		params.QueueName, // name
+		false,            // durable default is false
+		false,            // delete when unused
+		false,            // exclusive default is true
+		false,            // noWait
+		nil,              // arguments
 	)
 	if err != nil {
 		shared.ErrorHandler(shared.GetFunction(), "Failed to declare a queue")
@@ -149,14 +144,14 @@ func (p *Publisher) configureRabbitMQ(host string, port int, queueName string) {
 func RunExperiments(p Publisher, params parameters.AllParameters) {
 	wg := sync.WaitGroup{}
 
-	for i := 0; i < p.Params.NumberOfClients; i++ {
+	for i := 0; i < params.NumberOfClients; i++ {
 		id := "cli-" + strings.TrimSpace(strconv.Itoa(i))
 		publisher := NewPublisher()
 		publisher.Initialise(id, params)
 		go publisher.Run(&wg)
 		wg.Add(1)
 	}
-	fmt.Println("All", p.Params.NumberOfClients, "Clients initialised ...")
+	fmt.Println("All", params.NumberOfClients, "Clients initialised ...")
 	wg.Wait()
-	fmt.Println("All", p.Params.NumberOfClients, "clients finished...")
+	fmt.Println("All", params.NumberOfClients, "clients finished...")
 }

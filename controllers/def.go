@@ -26,5 +26,9 @@ type Controller interface {
 
 func NewController(t string) Controller {
 
+	_, ok := ControllerSet[t]
+	if !ok {
+		shared.ErrorHandler(shared.GetFunction(), "Controller type does not exist ["+t+"]")
+	}
 	return ControllerSet[t]
 }

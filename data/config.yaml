@@ -5,25 +5,26 @@ Deadzone              : 100.0
 DeffuzificationMethod : "Centroid"
 DeltaTime             : 5
 Direction             : 1.0
-DockerDir             : "C:\\Users\\user\\go\\adaptive-moms\\data"
+DockerDir             : "/app/data"
 ExecutionType         : "ExperimentClosedLoop"
 HysteresisBand        : 100.0
-Kp                    : 13.0
-Ki                    : 0.0
-Kd                    : 0.0
+Kp                    : 1.0
+Ki                    : 2.0
+Kd                    : 3.0
 Max                   : 100.0
 Mean                  : 10.0
 MembershipFunction    : "Gaussian"
 MessageSize           : 256
 Min                   : 1.0
 MonitorTime           : 2
-NumberOfClients       : 100
+NumberOfClients       : 10
 NumberOfRequests      : 1000000
-OutputFile            : "basicpid.csv"
+OutputFile            : "hpa.csv"
 PC                    : 1.0
 QueueName             : "rpc_queue"
-RabbitMQHost          : "localhost"
+RabbitMQHostPub       : "localhost" #Local host
+RabbitMQHostSub       : "172.17.0.2" # Docker
 RabbitMQPort          : 5672
-SampleSizePerLevel    : 3
-SetPoints             : [500]
-StdDev                : 2.0
+SampleSizePerLevel    : 30
+SetPoints             : [500,1000,2000,3000,500,600,1500]
+StdDev                : 1.0

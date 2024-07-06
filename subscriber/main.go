@@ -68,7 +68,7 @@ func (s *Subscriber) Run(p parameters.AllParameters) {
 }
 
 func (s *Subscriber) Initialise(p parameters.AllParameters, c controllers.Controller) {
-	s.Params.RabbitMQHost = p.RabbitMQHost
+	s.Params.RabbitMQHost = p.RabbitMQHostSub
 	s.Params.RabbitMQPort = p.RabbitMQPort
 	s.Params.QueueName = p.QueueName
 	s.Params.PC = p.PC
@@ -76,7 +76,7 @@ func (s *Subscriber) Initialise(p parameters.AllParameters, c controllers.Contro
 	s.Params.SetPoints = p.SetPoints
 	s.Params.Controller = c
 
-	s.configureRabbitMQ(s.Params.RabbitMQHost, s.Params.RabbitMQPort, s.Params.QueueName, s.Params.PC)
+	s.configureRabbitMQ(p)
 }
 
 func (s *Subscriber) Warmup() {
@@ -301,19 +301,19 @@ func (s *Subscriber) RunExperimentClosedLoop(p parameters.AllParameters) {
 			if currentSample >= p.SampleSizePerLevel {
 				currentSample = 0
 				currentSetpoint++
-				if currentSetpoint >= len(p.SetPoints) {
-					currentSetpoint = 0
+				if currentSetpoint >= len(p.SetPoints) { // stop condition
+					return
 				}
 			}
 		}
 	}
 }
 
-func (c *Subscriber) configureRabbitMQ(host string, port int, queueName string, pc float64) {
+func (c *Subscriber) configureRabbitMQ(params parameters.AllParameters) {
 	err := error(nil)
 
 	// create connection
-	c.Params.Conn, err = amqp.Dial("amqp://guest:guest@" + c.Params.RabbitMQHost + ":" + strconv.Itoa(c.Params.RabbitMQPort) + "/")
+	c.Params.Conn, err = amqp.Dial("amqp://guest:guest@" + params.RabbitMQHostSub + ":" + strconv.Itoa(params.RabbitMQPort) + "/")
 	if err != nil {
 		shared.ErrorHandler(shared.GetFunction(), "Failed to connect to RabbitMQ broker")
 	}
@@ -330,12 +330,12 @@ func (c *Subscriber) configureRabbitMQ(host string, port int, queueName string, 
 
 	// declare queues
 	c.Params.Queue, err = c.Params.Ch.QueueDeclare(
-		c.Params.QueueName, // name
-		false,              // durable
-		false,              // delete when unused
-		false,              // exclusive
-		false,              // no-wait
-		nil,                // arguments
+		params.QueueName, // name
+		false,            // durable
+		false,            // delete when unused
+		false,            // exclusive
+		false,            // no-wait
+		nil,              // arguments
 	)
 	if err != nil {
 		shared.ErrorHandler(shared.GetFunction(), "Failed to declare a queue")
@@ -357,9 +357,9 @@ func (c *Subscriber) configureRabbitMQ(host string, port int, queueName string, 
 
 	// configure initial QoS of Req channel
 	err = c.Params.Ch.Qos(
-		int(pc), // prefetch count
-		0,       // prefetch size
-		true,    // global TODO default is false
+		int(params.PC), // prefetch count
+		0,              // prefetch size
+		true,           // global
 	)
 	if err != nil {
 		shared.ErrorHandler(shared.GetFunction(), "Failed to set QoS")

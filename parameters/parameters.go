@@ -3,6 +3,7 @@ package parameters
 import (
 	"adaptive-moms/shared"
 	"github.com/spf13/viper"
+	"os"
 	"time"
 )
 
@@ -26,7 +27,8 @@ type AllParameters struct {
 	NumberOfRequests      int
 	PC                    float64
 	QueueName             string
-	RabbitMQHost          string
+	RabbitMQHostSub       string
+	RabbitMQHostPub       string
 	RabbitMQPort          int
 	SampleSizePerLevel    int
 	SetPoints             []int
@@ -46,7 +48,7 @@ func LoadParameters() AllParameters {
 	viper.SetConfigName(fileName)
 
 	// Set the path to look for the configuration file
-	filePath := "C:\\Users\\user\\go\\adaptive-moms\\data"
+	filePath := os.Getenv("CONFPATH")
 	viper.AddConfigPath(filePath)
 
 	// Enable VIPER to read Environment Variables
@@ -69,7 +71,8 @@ func LoadParameters() AllParameters {
 	r.PC = viper.GetFloat64("PC")
 	r.SetPoints = viper.GetIntSlice("SetPoints")
 	r.DeltaTime = viper.GetDuration("DeltaTime") * time.Second
-	r.RabbitMQHost = viper.GetString("RabbitMQHost")
+	r.RabbitMQHostPub = viper.GetString("RabbitMQHostPub")
+	r.RabbitMQHostSub = viper.GetString("RabbitMQHostSub")
 	r.RabbitMQPort = viper.GetInt("RabbitMQPort")
 	r.QueueName = viper.GetString("QueueName")
 	r.NumberOfRequests = viper.GetInt("NumberOfRequests")
