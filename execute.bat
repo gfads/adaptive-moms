@@ -26,7 +26,7 @@ timeout /t 15
 
 echo ####### Start Publisher
 set GO111MODULE=on
-set GOPATH=C:\Users\user\go;C:\Users\user\go\control\pkg\mod\github.com\streadway\amqp@v1.0.0;C:\Users\user\go\adaptive-moms\publisher
+set GOPATH=C:\Users\user\go;C:\Users\user\go\adaptive-moms\publisher;C:\Users\user\go\adaptive-moms;C:\Users\user\go\adaptive-moms\apague\pub
 set GOROOT=C:\Program Files\Go
 set CONFPATH=C:\Users\user\go\adaptive-moms\data
 
