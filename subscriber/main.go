@@ -5,7 +5,7 @@ import (
 	"adaptive-moms/parameters"
 	"adaptive-moms/shared"
 	"fmt"
-	"github.com/streadway/amqp"
+	"github.com/rabbitmq/amqp091-go"
 	"math"
 	_ "net/http/pprof"
 	"os"
@@ -14,10 +14,10 @@ import (
 )
 
 type Parameters struct {
-	Conn           *amqp.Connection
-	Ch             *amqp.Channel
-	Queue          amqp.Queue
-	Msgs           <-chan amqp.Delivery
+	Conn           *amqp091.Connection
+	Ch             *amqp091.Channel
+	Queue          amqp091.Queue
+	Msgs           <-chan amqp091.Delivery
 	RabbitMQHost   string
 	RabbitMQPort   int
 	QueueName      string
@@ -116,13 +116,13 @@ func (s *Subscriber) Warmup() {
 func (s Subscriber) RunOpenLoop(p parameters.AllParameters) {
 
 	// Close channels and connections (when finish)
-	defer func(Conn *amqp.Connection) {
+	defer func(Conn *amqp091.Connection) {
 		err := Conn.Close()
 		if err != nil {
 			shared.ErrorHandler(shared.GetFunction(), err.Error())
 		}
 	}(s.Params.Conn)
-	defer func(Ch *amqp.Channel) {
+	defer func(Ch *amqp091.Channel) {
 		err := Ch.Close()
 		if err != nil {
 			shared.ErrorHandler(shared.GetFunction(), err.Error())
@@ -313,7 +313,7 @@ func (c *Subscriber) configureRabbitMQ(params parameters.AllParameters) {
 	err := error(nil)
 
 	// create connection
-	c.Params.Conn, err = amqp.Dial("amqp://guest:guest@" + params.RabbitMQHostSub + ":" + strconv.Itoa(params.RabbitMQPort) + "/")
+	c.Params.Conn, err = amqp091.Dial("amqp://guest:guest@" + params.RabbitMQHostSub + ":" + strconv.Itoa(params.RabbitMQPort) + "/")
 	if err != nil {
 		shared.ErrorHandler(shared.GetFunction(), "Failed to connect to RabbitMQ broker")
 	}

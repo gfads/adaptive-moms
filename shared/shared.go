@@ -9,6 +9,9 @@ import (
 	"strings"
 )
 
+// Configuration file's path
+const ConfigurationPath = "C:\\Users\\user\\go\\adaptive-moms\\data"
+
 // Experiment configurations
 const WarmupMessages int = 100000
 const ExperimentClosedLoop string = "ExperimentClosedLoop"

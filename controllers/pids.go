@@ -55,7 +55,7 @@ func (c *BasicPID) Update(p ...float64) float64 {
 	// control law
 	c.Out = proportional + integrator + differentiator
 
-	println("Controller:: Out:: ", c.Out)
+	//println("Controller:: Out:: ", c.Out)
 	if c.Out > c.Max {
 		c.Out = c.Max
 	} else if c.Out < c.Min {

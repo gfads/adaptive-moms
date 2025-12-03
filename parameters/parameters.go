@@ -9,7 +9,14 @@ import (
 
 type AllParameters struct {
 	Alfa                  float64
+	Alfa0                 float64
+	Alfa1                 float64
+	Alfa2                 float64
 	Beta                  float64
+	Beta0                 float64
+	Beta1                 float64
+	Beta2                 float64
+	Delta                 float64
 	Direction             float64
 	DeffuzificationMethod string
 	DeltaTime             time.Duration
@@ -43,6 +50,12 @@ type AllParameters struct {
 func LoadParameters() AllParameters {
 	r := AllParameters{}
 
+	// Configure environment variable
+	err := os.Setenv("CONFPATH", shared.ConfigurationPath)
+	if err != nil {
+		shared.ErrorHandler(shared.GetFunction(), "CONFPATH not configured")
+	}
+
 	// Set the file name of the configuration file
 	fileName := "config"
 	viper.SetConfigName(fileName)
@@ -55,7 +68,7 @@ func LoadParameters() AllParameters {
 	viper.AutomaticEnv()
 
 	// Read the configuration file
-	err := viper.ReadInConfig()
+	err = viper.ReadInConfig()
 	if err != nil {
 		shared.ErrorHandler(shared.GetFunction(), err.Error())
 	}
@@ -82,7 +95,7 @@ func LoadParameters() AllParameters {
 	r.MessageSize = viper.GetInt("MessageSize")
 	r.MonitorTime = viper.GetDuration("MonitorTime") * time.Second
 	r.OutputFile = viper.GetString("OutputFile")
-	r.DockerDir = viper.GetString("DockerDir")
+	r.DockerDir = viper.GetString("DataDir")
 	r.Deadzone = viper.GetFloat64("Deadzone")
 	r.Alfa = viper.GetFloat64("Alfa")
 	r.Beta = viper.GetFloat64("Beta")

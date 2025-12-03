@@ -4,7 +4,7 @@ import (
 	"adaptive-moms/parameters"
 	"adaptive-moms/shared"
 	"fmt"
-	"github.com/streadway/amqp"
+	"github.com/rabbitmq/amqp091-go"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -22,10 +22,10 @@ type Parameters struct {
 	Mean             float64
 	StdDev           float64
 	MessageSize      int
-	Conn             *amqp.Connection
-	Ch               *amqp.Channel
-	Queue            amqp.Queue
-	Msgs             <-chan amqp.Delivery
+	Conn             *amqp091.Connection
+	Ch               *amqp091.Channel
+	Queue            amqp091.Queue
+	Msgs             <-chan amqp091.Delivery
 }
 
 type Publisher struct {
@@ -53,13 +53,13 @@ func (p *Publisher) Run(wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	// Close channels and connections (when finish)
-	defer func(Conn *amqp.Connection) {
+	defer func(Conn *amqp091.Connection) {
 		err := Conn.Close()
 		if err != nil {
 			shared.ErrorHandler(shared.GetFunction(), err.Error())
 		}
 	}(p.Params.Conn)
-	defer func(Ch *amqp.Channel) {
+	defer func(Ch *amqp091.Channel) {
 		err := Ch.Close()
 		if err != nil {
 			shared.ErrorHandler(shared.GetFunction(), err.Error())
@@ -87,7 +87,7 @@ func (p *Publisher) Run(wg *sync.WaitGroup) {
 			false,              // mandatory
 			false,              // immediate
 
-			amqp.Publishing{
+			amqp091.Publishing{
 				ContentType:   "text/plain",
 				CorrelationId: corrId,
 				ReplyTo:       p.Params.Queue.Name,
@@ -117,7 +117,7 @@ func (p *Publisher) configureRabbitMQ(params parameters.AllParameters) {
 
 	err := error(nil)
 
-	p.Params.Conn, err = amqp.Dial("amqp://guest:guest@" + params.RabbitMQHostPub + ":" + strconv.Itoa(params.RabbitMQPort) + "/")
+	p.Params.Conn, err = amqp091.Dial("amqp://guest:guest@" + params.RabbitMQHostPub + ":" + strconv.Itoa(params.RabbitMQPort) + "/")
 	if err != nil {
 		shared.ErrorHandler(shared.GetFunction(), "Failed to connect to RabbitMQ broker")
 	}
